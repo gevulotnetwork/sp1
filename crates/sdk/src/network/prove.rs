@@ -19,6 +19,9 @@ use std::future::Future;
 use std::future::IntoFuture;
 use std::pin::Pin;
 
+#[cfg(feature = "tee")]
+use crate::network::tee::TEEProof;
+
 /// A builder for creating a proof request to the network.
 pub struct NetworkProveBuilder<'a> {
     pub(crate) prover: &'a NetworkProver,
@@ -30,6 +33,7 @@ pub struct NetworkProveBuilder<'a> {
     pub(crate) skip_simulation: bool,
     pub(crate) cycle_limit: Option<u64>,
     pub(crate) gas_limit: Option<u64>,
+    pub(crate) tee_proof_type: TEEProof,
 }
 
 impl NetworkProveBuilder<'_> {
@@ -301,6 +305,34 @@ impl NetworkProveBuilder<'_> {
         self
     }
 
+    /// Set the TEE proof type to use.
+    ///
+    /// # Details
+    /// This method sets the TEE proof type to use.
+    ///
+    /// # Example
+    /// ```rust,no_run
+    /// #[cfg(feature = "tee")]
+    /// fn create_proof() {
+    ///     use sp1_sdk::{ProverClient, SP1Stdin, Prover, TEEProof};
+    ///
+    ///     let elf = &[1, 2, 3];
+    ///     let stdin = SP1Stdin::new();
+    ///
+    ///     let client = ProverClient::builder().network().build();
+    ///     let (pk, vk) = client.setup(elf);
+    ///     let builder = client.prove(&pk, &stdin)
+    ///         .tee_proof(TEEProof::NitroIntegrity)
+    ///         .run();
+    /// }
+    /// ```
+    #[cfg(feature = "tee")]
+    #[must_use]
+    pub fn tee_proof(mut self, tee_proof_type: TEEProof) -> Self {
+        self.tee_proof_type = tee_proof_type;
+        self
+    }
+
     /// Request a proof from the prover network.
     ///
     /// # Details
@@ -358,6 +390,7 @@ impl NetworkProveBuilder<'_> {
             skip_simulation,
             cycle_limit,
             gas_limit,
+            tee_proof_type: _,
         } = self;
         prover
             .request_proof_impl(
@@ -424,6 +457,7 @@ impl NetworkProveBuilder<'_> {
             mut skip_simulation,
             cycle_limit,
             gas_limit,
+            tee_proof_type,
         } = self;
 
         // Check for deprecated environment variable
@@ -446,6 +480,7 @@ impl NetworkProveBuilder<'_> {
                 skip_simulation,
                 cycle_limit,
                 gas_limit,
+                tee_proof_type,
             )
             .await
     }

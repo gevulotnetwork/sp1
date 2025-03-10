@@ -51,6 +51,9 @@ pub mod prover;
 pub use prover::Prover;
 pub use prover::SP1VerificationError;
 
+#[cfg(feature = "tee")]
+pub use crate::network::tee::TEEProof;
+
 // Re-export the build utilities and executor primitives.
 pub use sp1_build::include_elf;
 pub use sp1_core_executor::{ExecutionReport, Executor, HookEnv, SP1Context, SP1ContextBuilder};

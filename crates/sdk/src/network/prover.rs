@@ -12,16 +12,20 @@ use crate::network::proto::network::GetProofRequestStatusResponse;
 use crate::network::{
     Error, DEFAULT_CYCLE_LIMIT, DEFAULT_GAS_LIMIT, DEFAULT_NETWORK_RPC_URL, DEFAULT_TIMEOUT_SECS,
 };
+use crate::ProofFromNetwork;
 use crate::{
     network::client::NetworkClient,
     network::proto::network::{ExecutionStatus, FulfillmentStatus, FulfillmentStrategy, ProofMode},
     Prover, SP1ProofMode, SP1ProofWithPublicValues, SP1ProvingKey, SP1VerifyingKey,
 };
 use alloy_primitives::B256;
-use anyhow::Result;
+use anyhow::{Context, Result};
 use sp1_core_executor::{SP1Context, SP1ContextBuilder};
 use sp1_core_machine::io::SP1Stdin;
 use sp1_prover::{components::CpuProverComponents, SP1Prover, SP1_CIRCUIT_VERSION};
+
+#[cfg(feature = "tee")]
+use crate::network::tee::{client::Client as TeeClient, TEEProof};
 
 use {crate::utils::block_on, tokio::time::sleep};
 
@@ -110,6 +114,7 @@ impl NetworkProver {
             skip_simulation: false,
             cycle_limit: None,
             gas_limit: None,
+            tee_proof_type: TEEProof::None,
         }
     }
 
@@ -183,10 +188,10 @@ impl NetworkProver {
         remaining_timeout: Option<Duration>,
     ) -> Result<(Option<SP1ProofWithPublicValues>, FulfillmentStatus)> {
         // Get the status.
-        let (status, maybe_proof): (
-            GetProofRequestStatusResponse,
-            Option<SP1ProofWithPublicValues>,
-        ) = self.client.get_proof_request_status(request_id, remaining_timeout).await?;
+        let (status, maybe_proof): (GetProofRequestStatusResponse, Option<ProofFromNetwork>) =
+            self.client.get_proof_request_status(request_id, remaining_timeout).await?;
+
+        let maybe_proof = maybe_proof.map(Into::into);
 
         // Check if current time exceeds deadline. If so, the proof has timed out.
         let current_time =
@@ -348,6 +353,7 @@ impl NetworkProver {
         skip_simulation: bool,
         cycle_limit: Option<u64>,
         gas_limit: Option<u64>,
+        tee_proof_type: TEEProof,
     ) -> Result<SP1ProofWithPublicValues> {
         let request_id = self
             .request_proof_impl(
@@ -361,7 +367,44 @@ impl NetworkProver {
                 gas_limit,
             )
             .await?;
-        self.wait_proof(request_id, timeout).await
+
+        // If 2FA is enabled, spawn a task to get the tee proof.
+        // Note: We only support one type of TEE proof for now.
+        #[cfg(feature = "tee")]
+        let handle = if matches!(tee_proof_type, TEEProof::NitroIntegrity) {
+            Some(tokio::spawn({
+                let stdin = stdin.clone();
+                let elf = pk.elf.clone();
+                let id = *request_id;
+
+                async move {
+                    let tee_client = TeeClient::default();
+                    tee_client
+                        .execute(super::tee::api::TEERequest { id, program: elf, stdin })
+                        .await
+                }
+            }))
+        } else {
+            None
+        };
+
+        // Wait for the proof to be generated.
+        let mut proof = self.wait_proof(request_id, timeout).await?;
+
+        // If 2FA is enabled, wait for the tee proof to be generated and add it to the proof.
+        #[cfg(feature = "tee")]
+        if let Some(handle) = handle {
+            let tee_proof = handle
+                .await
+                .context("Spawning a new task to get the tee proof failed")?
+                .context("Error response from TEE server")?;
+
+            proof.tee_proof = Some(tee_proof);
+
+            Ok(proof)
+        } else {
+            Ok(proof)
+        }
     }
 
     /// The cycle limit and gas limit are determined according to the following priority:
@@ -451,6 +494,7 @@ impl Prover<CpuProverComponents> for NetworkProver {
             false,
             None,
             None,
+            TEEProof::None,
         ))
     }
 }
