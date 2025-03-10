@@ -4,6 +4,7 @@ use alloy_primitives::Address;
 use eventsource_stream::{EventStreamError, Eventsource};
 use futures::stream::StreamExt;
 use reqwest::{Client as HttpClient, Error as HttpError};
+use sp1_prover::SP1_CIRCUIT_VERSION;
 
 /// Errors that can occur when interacting with the TEE server.
 #[derive(Debug, thiserror::Error)]
@@ -70,6 +71,7 @@ impl Client {
         let payload: EventPayload = self
             .client
             .post(format!("{}/execute", self.url))
+            .header("X-SP1-Version", SP1_CIRCUIT_VERSION)
             .json(&request)
             .send()
             .await?
