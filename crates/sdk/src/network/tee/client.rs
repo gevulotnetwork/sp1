@@ -25,7 +25,7 @@ pub enum ClientError {
     Decode(#[from] hex::FromHexError),
 
     /// An error occurred while the server returned an error.
-    #[error("Error recieved from server: {0}")]
+    #[error("Error received from server: {0}")]
     ServerError(String),
 
     /// No response was received from the server.
@@ -91,7 +91,7 @@ impl Client {
         // Everything worked as expected, but the handle the case where execution failed.
         match payload {
             EventPayload::Success(response) => Ok(response),
-            // This error type may either be an excution error, or an internal server error.
+            // This error type may either be an execution error, or an internal server error.
             // For the former, this should have been checked by the caller locally by executing
             // the program.
             EventPayload::Error(error) => Err(ClientError::ServerError(error)),

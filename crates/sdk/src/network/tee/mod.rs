@@ -1,6 +1,6 @@
 //! # TEE Integrity Proofs.
 //!
-//! An "integrity proof" is a signature over the outputs of the exection of a program computed
+//! An "integrity proof" is a signature over the outputs of the execution of a program computed
 //! in a trusted execution environment (TEE).
 //!
 //! This acts a "2-factor authentication" for the SP1 proving system.
