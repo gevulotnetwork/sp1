@@ -1,5 +1,7 @@
 use crate::SP1Stdin;
 use alloy_primitives::Address;
+use alloy_primitives::PrimitiveSignature;
+use alloy_signer::SignerSync;
 use serde::{Deserialize, Serialize};
 
 use k256::ecdsa::Signature;
@@ -13,6 +15,22 @@ pub struct TEERequest {
     pub program: Vec<u8>,
     /// The stdin for the program.
     pub stdin: SP1Stdin,
+    /// The signature of the request id.
+    pub signature: PrimitiveSignature,
+}
+
+impl TEERequest {
+    /// The selector for the TEE verifier.
+    pub(crate) fn new<S: SignerSync>(
+        signer: &S,
+        id: [u8; 32],
+        program: Vec<u8>,
+        stdin: SP1Stdin,
+    ) -> Self {
+        let signature = signer.sign_message_sync(&id).expect("Failed to sign request id");
+
+        Self { id, program, stdin, signature }
+    }
 }
 
 /// The response payload from the TEE server.

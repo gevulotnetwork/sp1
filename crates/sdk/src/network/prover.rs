@@ -372,17 +372,17 @@ impl NetworkProver {
         // Note: We only support one type of TEE proof for now.
         #[cfg(feature = "tee")]
         let handle = if matches!(tee_proof_type, TEEProof::NitroIntegrity) {
-            Some(tokio::spawn({
-                let stdin = stdin.clone();
-                let elf = pk.elf.clone();
-                let id = *request_id;
+            let request = super::tee::api::TEERequest::new(
+                &self.client.signer,
+                *request_id,
+                pk.elf.clone(),
+                stdin.clone(),
+            );
 
-                async move {
-                    let tee_client = TeeClient::default();
-                    tee_client
-                        .execute(super::tee::api::TEERequest { id, program: elf, stdin })
-                        .await
-                }
+            Some(tokio::spawn(async move {
+                let tee_client = TeeClient::default();
+
+                tee_client.execute(request).await
             }))
         } else {
             None
