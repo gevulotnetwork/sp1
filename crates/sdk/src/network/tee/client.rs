@@ -72,7 +72,7 @@ impl Client {
             .client
             .post(format!("{}/execute", self.url))
             .header("X-SP1-Version", SP1_CIRCUIT_VERSION)
-            .json(&request)
+            .body(bincode::serialize(&request)?)
             .send()
             .await?
             .bytes_stream()
