@@ -171,10 +171,17 @@ impl SP1CudaProver {
         gpu_device: Option<u8>,
     ) -> Result<SP1CudaProver, Box<dyn StdError>> {
         // If the moongate endpoint url hasn't been provided, we start the Docker container
-        let container_name = match gpu_device.clone() {
+        let container_name = match gpu_device {
             Some(gpu_device) => format!("sp1-gpu-{}", gpu_device),
             None => "sp1-gpu".to_string(),
         };
+
+        // Calculate port based on GPU device
+        let port = match gpu_device {
+            Some(device) => 3000 + u16::from(device),
+            None => 3000,
+        };
+
         let image_name = std::env::var("SP1_GPU_IMAGE")
             .unwrap_or_else(|_| "public.ecr.aws/succinct-labs/moongate:v4.1.0".to_string());
 
@@ -200,7 +207,7 @@ impl SP1CudaProver {
                 "-e",
                 &format!("RUST_LOG={}", rust_log_level),
                 "-p",
-                "3000:3000",
+                &format!("{}:3000", port),
                 "--rm",
                 "--gpus",
                 gpu_device.map(|id| id.to_string()).as_deref().unwrap_or("all"),
@@ -229,7 +236,7 @@ impl SP1CudaProver {
         std::thread::sleep(Duration::from_secs(2));
 
         let client = Client::new(
-            Url::parse("http://localhost:3000/twirp/").expect("failed to parse url"),
+            Url::parse(&format!("http://localhost:{}/twirp/", port)).expect("failed to parse url"),
             reqwest::Client::new(),
             reqwest_middlewares,
         )
