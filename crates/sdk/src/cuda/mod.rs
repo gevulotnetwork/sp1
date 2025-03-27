@@ -26,7 +26,11 @@ pub struct CudaProver {
 
 impl CudaProver {
     /// Creates a new [`CudaProver`].
-    pub fn new(prover: SP1Prover, moongate_endpoint: Option<String>, gpu_device: Option<String>) -> Self {
+    pub fn new(
+        prover: SP1Prover,
+        moongate_endpoint: Option<String>,
+        gpu_device: Option<u8>,
+    ) -> Self {
         let cuda_prover = SP1CudaProver::new(moongate_endpoint, gpu_device);
         Self {
             cpu_prover: prover,

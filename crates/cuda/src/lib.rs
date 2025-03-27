@@ -110,7 +110,7 @@ impl SP1CudaProver {
     /// `moongate_endpoint`, or if not provided, create one that runs inside a Docker container.
     pub fn new(
         moongate_endpoint: Option<String>,
-        gpu_device: Option<String>,
+        gpu_device: Option<u8>,
     ) -> Result<Self, Box<dyn StdError>> {
         let reqwest_middlewares = vec![Box::new(LoggingMiddleware) as Box<dyn Middleware>];
 
@@ -168,7 +168,7 @@ impl SP1CudaProver {
 
     fn start_moongate_server(
         reqwest_middlewares: Vec<Box<dyn Middleware>>,
-        gpu_device: Option<String>,
+        gpu_device: Option<u8>,
     ) -> Result<SP1CudaProver, Box<dyn StdError>> {
         // If the moongate endpoint url hasn't been provided, we start the Docker container
         let container_name = match gpu_device.clone() {
@@ -203,7 +203,7 @@ impl SP1CudaProver {
                 "3000:3000",
                 "--rm",
                 "--gpus",
-                gpu_device.as_deref().unwrap_or("all"),
+                gpu_device.map(|id| id.to_string()).as_deref().unwrap_or("all"),
                 "--name",
                 &container_name,
                 &image_name,
