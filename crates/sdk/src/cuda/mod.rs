@@ -168,6 +168,6 @@ impl Prover<CpuProverComponents> for CudaProver {
 
 impl Default for CudaProver {
     fn default() -> Self {
-        Self::new(SP1Prover::new(), None)
+        Self::new(SP1Prover::new(), None, None)
     }
 }
