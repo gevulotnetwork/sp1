@@ -108,7 +108,7 @@ pub struct WrapRequestPayload {
 impl SP1CudaProver {
     /// Creates a new [SP1CudaProver] that can be used to communicate with the Moongate server at
     /// `moongate_endpoint`, or if not provided, create one that runs inside a Docker container.
-    pub fn new(moongate_endpoint: Option<String>) -> Result<Self, Box<dyn StdError>> {
+    pub fn new(moongate_endpoint: Option<String>, gpu_device: Option<String>) -> Result<Self, Box<dyn StdError>> {
         let reqwest_middlewares = vec![Box::new(LoggingMiddleware) as Box<dyn Middleware>];
 
         let prover = match moongate_endpoint {
@@ -122,7 +122,7 @@ impl SP1CudaProver {
 
                 SP1CudaProver { client, managed_container: None }
             }
-            None => Self::start_moongate_server(reqwest_middlewares)?,
+            None => Self::start_moongate_server(reqwest_middlewares, gpu_device)?,
         };
 
         let timeout = Duration::from_secs(300);
@@ -165,6 +165,7 @@ impl SP1CudaProver {
 
     fn start_moongate_server(
         reqwest_middlewares: Vec<Box<dyn Middleware>>,
+        gpu_device: Option<String>,
     ) -> Result<SP1CudaProver, Box<dyn StdError>> {
         // If the moongate endpoint url hasn't been provided, we start the Docker container
         let container_name = "sp1-gpu";
@@ -196,7 +197,7 @@ impl SP1CudaProver {
                 "3000:3000",
                 "--rm",
                 "--gpus",
-                "all",
+                gpu_device.as_deref().unwrap_or("all"),
                 "--name",
                 container_name,
                 &image_name,
@@ -312,7 +313,7 @@ impl SP1CudaProver {
 
 impl Default for SP1CudaProver {
     fn default() -> Self {
-        Self::new(None).expect("Failed to create SP1CudaProver")
+        Self::new(None, None).expect("Failed to create SP1CudaProver")
     }
 }
 
