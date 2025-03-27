@@ -210,7 +210,7 @@ impl SP1CudaProver {
                 &format!("{}:3000", port),
                 "--rm",
                 "--gpus",
-                gpu_device.map(|id| id.to_string()).as_deref().unwrap_or("all"),
+                gpu_device.map(|id| format!("device={}", id)).as_deref().unwrap_or("all"),
                 "--name",
                 &container_name,
                 &image_name,
