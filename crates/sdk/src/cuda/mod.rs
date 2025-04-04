@@ -106,11 +106,13 @@ impl Prover<CpuProverComponents> for CudaProver {
     ) -> Result<SP1ProofWithPublicValues> {
         // Generate the core proof.
         let proof = self.cuda_prover.prove_core(stdin)?;
+        let cycles = proof.cycles;
         if kind == SP1ProofMode::Core {
             return Ok(SP1ProofWithPublicValues {
                 proof: SP1Proof::Core(proof.proof.0),
                 public_values: proof.public_values,
                 sp1_version: self.version().to_string(),
+                cycles,
             });
         }
 
@@ -118,12 +120,14 @@ impl Prover<CpuProverComponents> for CudaProver {
         let deferred_proofs =
             stdin.proofs.iter().map(|(reduce_proof, _)| reduce_proof.clone()).collect();
         let public_values = proof.public_values.clone();
+        let cycles = proof.cycles;
         let reduce_proof = self.cuda_prover.compress(&pk.vk, proof, deferred_proofs)?;
         if kind == SP1ProofMode::Compressed {
             return Ok(SP1ProofWithPublicValues {
                 proof: SP1Proof::Compressed(Box::new(reduce_proof)),
                 public_values,
                 sp1_version: self.version().to_string(),
+                cycles,
             });
         }
 
@@ -147,6 +151,7 @@ impl Prover<CpuProverComponents> for CudaProver {
                 proof: SP1Proof::Plonk(proof),
                 public_values,
                 sp1_version: self.version().to_string(),
+                cycles,
             });
         } else if kind == SP1ProofMode::Groth16 {
             let groth16_bn254_artifacts = if sp1_prover::build::sp1_dev_mode() {
@@ -163,6 +168,7 @@ impl Prover<CpuProverComponents> for CudaProver {
                 proof: SP1Proof::Groth16(proof),
                 public_values,
                 sp1_version: self.version().to_string(),
+                cycles,
             });
         }
 

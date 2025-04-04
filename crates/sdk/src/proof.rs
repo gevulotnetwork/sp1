@@ -66,6 +66,8 @@ pub struct SP1ProofWithPublicValues {
     /// The version of the SP1 RISC-V zkVM (not necessary but useful for detecting version
     /// mismatches).
     pub sp1_version: String,
+    /// The number of cycles the program executed.
+    pub cycles: u64,
 }
 
 impl SP1ProofWithPublicValues {
@@ -148,6 +150,7 @@ impl SP1ProofWithPublicValues {
                 proof: SP1Proof::Core(vec![]),
                 public_values,
                 sp1_version,
+                cycles: 0,
             },
             SP1ProofMode::Compressed => {
                 let shard_proof = ShardProof {
@@ -183,7 +186,7 @@ impl SP1ProofWithPublicValues {
                     proof: shard_proof,
                 }));
 
-                SP1ProofWithPublicValues { proof, public_values, sp1_version }
+                SP1ProofWithPublicValues { proof, public_values, sp1_version, cycles: 0 }
             }
             SP1ProofMode::Plonk => SP1ProofWithPublicValues {
                 proof: SP1Proof::Plonk(PlonkBn254Proof {
@@ -197,6 +200,7 @@ impl SP1ProofWithPublicValues {
                 }),
                 public_values,
                 sp1_version,
+                cycles: 0,
             },
             SP1ProofMode::Groth16 => SP1ProofWithPublicValues {
                 proof: SP1Proof::Groth16(Groth16Bn254Proof {
@@ -210,6 +214,7 @@ impl SP1ProofWithPublicValues {
                 }),
                 public_values,
                 sp1_version,
+                cycles: 0,
             },
         }
     }
@@ -232,6 +237,7 @@ mod tests {
             }),
             public_values: SP1PublicValues::new(),
             sp1_version: String::new(),
+            cycles: 0,
         };
         let expected_bytes = [vec![0, 0, 0, 0], hex::decode("ab").unwrap()].concat();
         assert_eq!(plonk_proof.bytes(), expected_bytes);
@@ -248,6 +254,7 @@ mod tests {
             }),
             public_values: SP1PublicValues::new(),
             sp1_version: String::new(),
+            cycles: 0,
         };
         let expected_bytes = [vec![0, 0, 0, 0], hex::decode("ab").unwrap()].concat();
         assert_eq!(groth16_proof.bytes(), expected_bytes);
@@ -264,6 +271,7 @@ mod tests {
             }),
             public_values: SP1PublicValues::new(),
             sp1_version: String::new(),
+            cycles: 0,
         };
         assert_eq!(mock_plonk_proof.bytes(), Vec::<u8>::new());
     }
@@ -279,6 +287,7 @@ mod tests {
             }),
             public_values: SP1PublicValues::new(),
             sp1_version: String::new(),
+            cycles: 0,
         };
         assert_eq!(mock_groth16_proof.bytes(), Vec::<u8>::new());
     }
@@ -292,6 +301,7 @@ mod tests {
             proof: SP1Proof::Core(vec![]),
             public_values: SP1PublicValues::new(),
             sp1_version: String::new(),
+            cycles: 0,
         };
         println!("{:?}", core_proof.bytes());
     }

@@ -120,11 +120,13 @@ impl CpuProver {
         // Generate the core proof.
         let proof: SP1ProofWithMetadata<SP1CoreProofData> =
             self.prover.prove_core(&pk.pk, program, stdin, opts, context)?;
+        let cycles = proof.cycles;
         if mode == SP1ProofMode::Core {
             return Ok(SP1ProofWithPublicValues {
                 proof: SP1Proof::Core(proof.proof.0),
                 public_values: proof.public_values,
                 sp1_version: self.version().to_string(),
+                cycles,
             });
         }
 
@@ -138,6 +140,7 @@ impl CpuProver {
                 proof: SP1Proof::Compressed(Box::new(reduce_proof)),
                 public_values,
                 sp1_version: self.version().to_string(),
+                cycles,
             });
         }
 
@@ -164,6 +167,7 @@ impl CpuProver {
                     proof: SP1Proof::Groth16(proof),
                     public_values,
                     sp1_version: self.version().to_string(),
+                    cycles,
                 })
             }
             SP1ProofMode::Plonk => {
@@ -180,6 +184,7 @@ impl CpuProver {
                     proof: SP1Proof::Plonk(proof),
                     public_values,
                     sp1_version: self.version().to_string(),
+                    cycles,
                 })
             }
             _ => unreachable!(),
