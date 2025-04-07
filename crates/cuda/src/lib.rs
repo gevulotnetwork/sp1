@@ -111,6 +111,7 @@ impl SP1CudaProver {
     pub fn new(
         moongate_endpoint: Option<String>,
         gpu_device: Option<u8>,
+        log_level: Option<String>,
     ) -> Result<Self, Box<dyn StdError>> {
         let reqwest_middlewares = vec![Box::new(LoggingMiddleware) as Box<dyn Middleware>];
 
@@ -125,7 +126,7 @@ impl SP1CudaProver {
 
                 SP1CudaProver { client, managed_container: None }
             }
-            None => Self::start_moongate_server(reqwest_middlewares, gpu_device)?,
+            None => Self::start_moongate_server(reqwest_middlewares, gpu_device, log_level)?,
         };
 
         let timeout = Duration::from_secs(300);
@@ -169,6 +170,7 @@ impl SP1CudaProver {
     fn start_moongate_server(
         reqwest_middlewares: Vec<Box<dyn Middleware>>,
         gpu_device: Option<u8>,
+        log_level: Option<String>,
     ) -> Result<SP1CudaProver, Box<dyn StdError>> {
         // If the moongate endpoint url hasn't been provided, we start the Docker container
         let container_name = match gpu_device {
@@ -200,7 +202,7 @@ impl SP1CudaProver {
         }
 
         // Start the docker container
-        let rust_log_level = std::env::var("RUST_LOG").unwrap_or_else(|_| "none".to_string());
+        let rust_log_level = log_level.unwrap_or_else(|| "none".to_string());
         Command::new("docker")
             .args([
                 "run",
@@ -326,7 +328,7 @@ impl SP1CudaProver {
 
 impl Default for SP1CudaProver {
     fn default() -> Self {
-        Self::new(None, None).expect("Failed to create SP1CudaProver")
+        Self::new(None, None, None).expect("Failed to create SP1CudaProver")
     }
 }
 

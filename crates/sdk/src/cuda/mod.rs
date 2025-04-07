@@ -30,8 +30,9 @@ impl CudaProver {
         prover: SP1Prover,
         moongate_endpoint: Option<String>,
         gpu_device: Option<u8>,
+        log_level: Option<String>,
     ) -> Self {
-        let cuda_prover = SP1CudaProver::new(moongate_endpoint, gpu_device);
+        let cuda_prover = SP1CudaProver::new(moongate_endpoint, gpu_device, log_level);
         Self {
             cpu_prover: prover,
             cuda_prover: cuda_prover.expect("Failed to initialize CUDA prover"),
@@ -178,6 +179,6 @@ impl Prover<CpuProverComponents> for CudaProver {
 
 impl Default for CudaProver {
     fn default() -> Self {
-        Self::new(SP1Prover::new(), None, None)
+        Self::new(SP1Prover::new(), None, None, None)
     }
 }

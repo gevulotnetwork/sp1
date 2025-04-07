@@ -49,6 +49,6 @@ impl CudaProverBuilder {
     /// ```
     #[must_use]
     pub fn build(self) -> CudaProver {
-        CudaProver::new(SP1Prover::new(), self.moongate_endpoint, None)
+        CudaProver::new(SP1Prover::new(), self.moongate_endpoint, None, None)
     }
 }
