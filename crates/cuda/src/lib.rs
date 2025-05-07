@@ -108,7 +108,11 @@ pub struct WrapRequestPayload {
 impl SP1CudaProver {
     /// Creates a new [SP1CudaProver] that can be used to communicate with the Moongate server at
     /// `moongate_endpoint`, or if not provided, create one that runs inside a Docker container.
-    pub fn new(moongate_endpoint: Option<String>) -> Result<Self, Box<dyn StdError>> {
+    pub fn new(
+        moongate_endpoint: Option<String>,
+        gpu_device: Option<u8>,
+        log_level: Option<String>,
+    ) -> Result<Self, Box<dyn StdError>> {
         let reqwest_middlewares = vec![Box::new(LoggingMiddleware) as Box<dyn Middleware>];
 
         let prover = match moongate_endpoint {
@@ -122,7 +126,7 @@ impl SP1CudaProver {
 
                 SP1CudaProver { client, managed_container: None }
             }
-            None => Self::start_moongate_server(reqwest_middlewares)?,
+            None => Self::start_moongate_server(reqwest_middlewares, gpu_device, log_level)?,
         };
 
         let timeout = Duration::from_secs(300);
@@ -165,14 +169,25 @@ impl SP1CudaProver {
 
     fn start_moongate_server(
         reqwest_middlewares: Vec<Box<dyn Middleware>>,
+        gpu_device: Option<u8>,
+        log_level: Option<String>,
     ) -> Result<SP1CudaProver, Box<dyn StdError>> {
         // If the moongate endpoint url hasn't been provided, we start the Docker container
-        let container_name = "sp1-gpu";
+        let container_name = match gpu_device {
+            Some(gpu_device) => format!("sp1-gpu-{}", gpu_device),
+            None => "sp1-gpu".to_string(),
+        };
+
+        // Calculate port based on GPU device
+        let port = match gpu_device {
+            Some(device) => 3000 + u16::from(device),
+            None => 3000,
+        };
         let image_name = std::env::var("SP1_GPU_IMAGE")
             .unwrap_or_else(|_| "public.ecr.aws/succinct-labs/moongate:v4.1.0".to_string());
 
         let cleaned_up = Arc::new(AtomicBool::new(false));
-        let cleanup_name = container_name;
+        let cleanup_name = container_name.clone();
         let cleanup_flag = cleaned_up.clone();
 
         // Check if Docker is available and the user has necessary permissions
@@ -186,19 +201,19 @@ impl SP1CudaProver {
         }
 
         // Start the docker container
-        let rust_log_level = std::env::var("RUST_LOG").unwrap_or_else(|_| "none".to_string());
+        let rust_log_level = log_level.unwrap_or_else(|| "none".to_string());
         Command::new("docker")
             .args([
                 "run",
                 "-e",
                 &format!("RUST_LOG={}", rust_log_level),
                 "-p",
-                "3000:3000",
+                &format!("{}:3000", port),
                 "--rm",
                 "--gpus",
-                "all",
+                gpu_device.map(|id| format!("device={}", id)).as_deref().unwrap_or("all"),
                 "--name",
-                container_name,
+                &container_name,
                 &image_name,
             ])
             // Redirect stdout and stderr to the parent process
@@ -208,21 +223,21 @@ impl SP1CudaProver {
             .map_err(|e| format!("Failed to start Docker container: {}. Please check your Docker installation and permissions.", e))?;
 
         // Kill the container on control-c
-        ctrlc::set_handler(move || {
-            tracing::debug!("received Ctrl+C, cleaning up...");
-            if !cleanup_flag.load(Ordering::SeqCst) {
-                cleanup_container(cleanup_name);
-                cleanup_flag.store(true, Ordering::SeqCst);
-            }
-            std::process::exit(0);
-        })
-        .unwrap();
+        // ctrlc::set_handler(move || {
+        //     tracing::debug!("received Ctrl+C, cleaning up...");
+        //     if !cleanup_flag.load(Ordering::SeqCst) {
+        //         cleanup_container(cleanup_name);
+        //         cleanup_flag.store(true, Ordering::SeqCst);
+        //     }
+        //     std::process::exit(0);
+        // })
+        // .unwrap();
 
         // Wait a few seconds for the container to start
         std::thread::sleep(Duration::from_secs(2));
 
         let client = Client::new(
-            Url::parse("http://localhost:3000/twirp/").expect("failed to parse url"),
+            Url::parse(&format!("http://localhost:{}/twirp/", port)).expect("failed to parse url"),
             reqwest::Client::new(),
             reqwest_middlewares,
         )
@@ -312,7 +327,7 @@ impl SP1CudaProver {
 
 impl Default for SP1CudaProver {
     fn default() -> Self {
-        Self::new(None).expect("Failed to create SP1CudaProver")
+        Self::new(None, None, None).expect("Failed to create SP1CudaProver")
     }
 }
 
